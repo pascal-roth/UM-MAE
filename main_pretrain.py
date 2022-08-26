@@ -87,7 +87,7 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/path/to/imagenet/', type=str,
+    parser.add_argument('--data_path', default='./self_sup_seg/data/dataset_unlabeled', type=str,
                         help='dataset path')
 
     parser.add_argument('--output_dir', default='./output_dir', help='path where to save, empty for no saving')
@@ -95,7 +95,7 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda', help='device to use for training / testing')
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--resume', default='', help='resume from checkpoint')
-    parser.add_argument('--load_from', default='', help='load pretrained checkpoint model')
+    parser.add_argument('--load_from', default='./self_sup_seg/models/mask2former_backbone/m2f_coco_swin_t.pth', help='load pretrained checkpoint model')
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N', help='start epoch')
     parser.add_argument('--num_workers', default=8, type=int)
@@ -129,11 +129,16 @@ def main(args):
     cudnn.benchmark = True
 
     transform_train = MaskTransform(args)
-    # TODO modify your own data loader here
-    train_folder = os.path.join(args.data_path, 'train')
-    train_ann_file = os.path.join(args.data_path, 'train.txt')
-    dataset_train = ImageListFolder(train_folder, transform=transform_train, ann_file=train_ann_file)
+    # TODO check if DataLoading comparible to original loading
+    dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
+    # dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_train)
     print(dataset_train)
+    # print(dataset_val)
+
+    # train_folder = os.path.join(args.data_path, 'train')
+    # train_ann_file = os.path.join(args.data_path, 'train.txt')
+    # dataset_train = ImageListFolder(train_folder, transform=transform_train, ann_file=train_ann_file)
+    # print(dataset_train)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -235,6 +240,7 @@ def main(args):
 if __name__ == '__main__':
     args = get_args_parser()
     args = args.parse_args()
+    print(args)
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     main(args)

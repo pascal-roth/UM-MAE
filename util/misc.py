@@ -336,7 +336,7 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
             checkpoint_model = checkpoint['model']
         else:
             checkpoint_model = checkpoint
-        msg = model_without_ddp.load_state_dict(checkpoint_model, strict=True)
+        msg = model_without_ddp.load_state_dict(checkpoint_model, strict=False)  # TODO: changed from strict True to False, change back at some point
         print(msg)
 
 

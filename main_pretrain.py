@@ -36,7 +36,7 @@ from mask_transform import MaskTransform
 
 import models_mae
 import models_mae_pvt
-import models_mae_swin
+import models_mae_swin_m2f as models_mae_swin
 import models_simmim_pvt
 import models_simmim_swin
 
@@ -52,26 +52,30 @@ def get_args_parser():
     parser.add_argument('--bf16', action='store_true', help='whether to use bf16')
 
     # Model parameters
-    parser.add_argument('--model', default='mae_vit_large_patch16', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='mae_swin_tiny_224', type=str, metavar='MODEL',
                         help='Name of model to train')
 
     parser.add_argument('--input_size', default=224, type=int, help='images input size')
     parser.add_argument('--token_size', default=int(224 / 16), type=int,
                         help='number of patch (in one dimension), usually input_size//16')  # for mask generator
 
-    parser.add_argument('--mask_ratio', default=0.75, type=float,
+    parser.add_argument('--mask_ratio', default=0.6735, type=float,  # changed from 0.75 to get correct 
                         help='Masking ratio (percentage of removed patches).')
     parser.add_argument('--mask_regular', action='store_true',
                         help='Uniform sampling for supporting pyramid-based vits')
     parser.set_defaults(mask_regular=False)
 
-    parser.add_argument('--vis_mask_ratio', default=0.0, type=float,
+    parser.add_argument('--vis_mask_ratio', default=0.25, type=float,
                         help='Secondary masking ratio (mask percentage of visible patches, secondary masking phase).')
 
     parser.add_argument('--norm_pix_loss', action='store_true',
                         help='Use (per-patch) normalized pixels as targets for computing loss')
     parser.set_defaults(norm_pix_loss=False)
 
+    parser.add_argument('--freeze', action='store_true',
+                        help='Freeze encoder weights (useful for pre-trained encoder weights')
+    parser.set_defaults(freeze=False)
+    
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
                         help='weight decay (default: 0.05)')

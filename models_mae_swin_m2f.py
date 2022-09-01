@@ -239,7 +239,7 @@ class SwinTransformerBlock(nn.Module):
         self.H = None
         self.W = None
 
-    def forward(self, x, mask_matrix):
+    def forward(self, x, mask_matrix, pos_hw):
         """Forward function.
         Args:
             x: Input feature, tensor size (B, H*W, C).
@@ -264,6 +264,7 @@ class SwinTransformerBlock(nn.Module):
         # cyclic shift
         if self.shift_size > 0:
             shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
+            pos_hw = torch.roll(pos_hw, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
             attn_mask = mask_matrix
         else:
             shifted_x = x
@@ -287,6 +288,7 @@ class SwinTransformerBlock(nn.Module):
         # reverse cyclic shift
         if self.shift_size > 0:
             x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
+            pos_hw = torch.roll(pos_hw, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
         else:
             x = shifted_x
 
@@ -299,7 +301,7 @@ class SwinTransformerBlock(nn.Module):
         x = shortcut + self.drop_path(x)
         x = x + self.drop_path(self.mlp(self.norm2(x)))
 
-        return x
+        return x, pos_hw
 
 class BasicLayer(nn.Module):
     """A basic Swin Transformer layer for one stage.
@@ -407,14 +409,13 @@ class BasicLayer(nn.Module):
         for blk in self.blocks:
             blk.H, blk.W = H, W
             if self.use_checkpoint:
-                x = checkpoint.checkpoint(blk, x, attn_mask)
+                x, pos_hw = checkpoint.checkpoint(blk, x, attn_mask, pos_hw)
             else:
-                x = blk(x, attn_mask)
-        if self.downsample is not None:
+                x, pos_hw = blk(x, attn_mask, pos_hw)
+        if self.downsample:
             x_down = self.downsample(x, H, W)
-            Wh, Ww = (H + 1) // 2, (W + 1) // 2
-            pos_hw[1] = Wh
-            pos_hw[2] = Ww
+            # shrink position values and scales
+            pos_hw = pos_hw[:, 0::2, 0::2, :] / 2.
             return x_down, pos_hw
         else:
             return x, pos_hw
@@ -786,6 +787,15 @@ class MaskedAutoencoderSwin(nn.Module):
         loss = self.forward_loss(imgs, pred[:, -mask_num:], mask)
         return loss, pred, mask
 
+def mae_swin_tiny_224_m2f_dec512d2b(**kwargs):
+    model = MaskedAutoencoderSwin(
+        img_size=224, patch_size=4, in_chans=3, stride=16,
+        embed_dim=96, depths=[2, 2, 6, 2], num_heads=[3, 6, 12, 24],
+        mlp_ratio=4, window_size=7, # 16 for finetune
+        decoder_embed_dim=512, decoder_depth=2, decoder_num_heads=16,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    return model
+
 
 def mae_swin_tiny_256_dec512d2b(**kwargs):
     model = MaskedAutoencoderSwin(
@@ -818,5 +828,6 @@ def mae_swin_large_256_dec512d8b64pmd(**kwargs):
 
 
 # set recommended archs
+mae_swin_tiny_224 = mae_swin_tiny_224_m2f_dec512d2b # decoder: 512 dim, 2 blocks
 mae_swin_tiny_256 = mae_swin_tiny_256_dec512d2b # decoder: 512 dim, 2 blocks
 mae_swin_large_256 = mae_swin_large_256_dec512d8b64pmd

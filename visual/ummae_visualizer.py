@@ -31,7 +31,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="MAE Visualizer")
     parser.add_argument(
         "--model", "-m",
-        default='mae_vit_base_patch16',
+        default='mae_swin_tiny_224',
         help='model name'
     )
     parser.add_argument(
@@ -110,7 +110,7 @@ def run_one_image(img: np.array, model, stride: int = 16):
     x = torch.tensor(img)
     h = x.size(1) // stride
 
-    mask_generator = RandomMaskingGenerator(h, 0.75, True)
+    mask_generator = RandomMaskingGenerator(h, 0.6735, True)
     mask = torch.tensor(mask_generator()).to(x.device).to(torch.bool).unsqueeze(0)
 
     # make it a batch-like
@@ -119,7 +119,7 @@ def run_one_image(img: np.array, model, stride: int = 16):
     # Einsum explanation: Sums the product of the elements of the input along dimensions specified using a notation
     # based on the Einstein summation convention.
 
-    px = model.patchify(x, s)
+    px = model.patchify(x, stride)
     px_mean = px.mean(dim=-1, keepdim=True)
     px_var = px.var(dim=-1, keepdim=True)
     # run UM-MAE

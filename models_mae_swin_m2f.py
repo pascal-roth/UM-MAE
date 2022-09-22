@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from timm.models.vision_transformer import Block 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
-from util.pos_embed import get_2d_sincos_pos_embed
+from .util.pos_embed import get_2d_sincos_pos_embed
 from einops import rearrange
 
 import torch.utils.checkpoint as checkpoint

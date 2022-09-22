@@ -132,13 +132,13 @@ def run_one_image(img: np.array, model, stride: int = 16):
     y = torch.gather(y, dim=1, index=ids_.unsqueeze(-1).expand(-1, -1, y.size(-1)))
     # unnormalize y
     y = y * (px_var + 1.e-6)**.5 + px_mean
-    y = model.unpatchify(y, s)
+    y = model.unpatchify(y, stride)
     y = torch.einsum('nchw->nhwc', y).detach().cpu()
 
     # visualize the mask
     mask = mask.detach()
-    mask = mask.unsqueeze(-1).repeat(1, 1, s**2 *3)  # (N, H*W, p*p*3)
-    mask = model.unpatchify(mask, s)  # 1 is removing, 0 is keeping
+    mask = mask.unsqueeze(-1).repeat(1, 1, stride**2 *3)  # (N, H*W, p*p*3)
+    mask = model.unpatchify(mask, stride)  # 1 is removing, 0 is keeping
     mask = torch.einsum('nchw->nhwc', mask).detach().cpu()
     
     x = torch.einsum('nchw->nhwc', x)    

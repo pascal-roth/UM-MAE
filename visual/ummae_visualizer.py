@@ -144,16 +144,16 @@ def run_one_image(img: np.array, model, stride: int = 16):
     x = torch.einsum('nchw->nhwc', x)    
 
     # masked image
-    im_masked = x * (1 - mask)
+    im_masked = x * (1 - mask.float())
 
     # MAE reconstruction pasted with visible patches
-    im_paste = x * (1 - mask) + y * mask
+    im_paste = x * (1 - mask.float()) + y * mask.float()
 
     # make the plt figure larger
     plt.rcParams['figure.figsize'] = [24, 6]
     fig, axs = plt.subplots(1, 4)
 
-    fig.suptitle(f'Image Visualization (loss {np.round(loss, decimals=6)})')
+    fig.suptitle(f'Image Visualization (loss {np.round(loss.detach().numpy(), decimals=6)})')
     show_image(axs[0], x[0], "original")
     show_image(axs[1], im_masked[0], "masked")
     show_image(axs[2], y[0], "reconstruction")

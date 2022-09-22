@@ -110,7 +110,7 @@ def run_one_image(img: np.array, model, stride: int = 16):
     x = torch.tensor(img)
     h = x.size(1) // stride
 
-    mask_generator = RandomMaskingGenerator(h, 0.6735, True)
+    mask_generator = RandomMaskingGenerator(h, 0.6735, False)
     mask = torch.tensor(mask_generator()).to(x.device).to(torch.bool).unsqueeze(0)
 
     # make it a batch-like

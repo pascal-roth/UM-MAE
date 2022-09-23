@@ -10,6 +10,7 @@
 import argparse
 import datetime
 import json
+from secrets import choice
 import numpy as np
 import os
 import time
@@ -40,10 +41,11 @@ import models_mae_swin_m2f as models_mae_swin
 import models_simmim_pvt
 import models_simmim_swin
 
+import wandb
 
 def get_args_parser():
     parser = argparse.ArgumentParser('UM-MAE pre-training', add_help=False)
-    parser.add_argument('--batch_size', default=64, type=int,
+    parser.add_argument('--batch_size', default=256, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--epochs', default=400, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
@@ -114,6 +116,15 @@ def get_args_parser():
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
 
+    # wandb parameters
+    parser.add_argument('--wb-project', type=str, default='um_mae', 
+                        help='Project name for wandb')
+    parser.add_argument('--wb-entity', type=str, default="rsl_ssl_pan_seh", 
+                        help='Entity name for wandb')
+    parser.add_argument('--wb-name', type=str, default='test', 
+                        help='Run name for wandb')
+    parser.add_argument('--wb-mode', type=str, default='online', choices=['online', 'offline'],
+                        help='Run mode for wandb (online or offline)')
     return parser
 
 
@@ -185,6 +196,9 @@ def main(args):
 
     model.to(device)
 
+    # wandb to watch model
+    wandb.watch(model)
+
     model_without_ddp = model
     print("Model = %s" % str(model_without_ddp))
 
@@ -230,6 +244,9 @@ def main(args):
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      'epoch': epoch, }
 
+        # log statistics to wandb
+        wandb.log(log_stats)
+
         if args.output_dir and misc.is_main_process():
             if log_writer is not None:
                 log_writer.flush()
@@ -245,6 +262,10 @@ if __name__ == '__main__':
     args = get_args_parser()
     args = args.parse_args()
     print(args)
+
+    wandb.init(project=args.wb_project, entity=args.wb_entity, name=args.wb_name, mode=args.wb_mode)
+    wandb.config = args
+
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     main(args)

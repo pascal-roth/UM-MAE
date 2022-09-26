@@ -33,10 +33,6 @@ def train_one_epoch(model: torch.nn.Module,
 
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
-    
-    if args.freeze:
-        for param in model.layers.parameters():
-            param.requires_grad = False
 
     for data_iter_step, (batch, _) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 

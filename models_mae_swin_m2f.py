@@ -8,6 +8,7 @@
 # --------------------------------------------------------
 
 from functools import partial
+from syslog import LOG_SYSLOG
 
 import numpy as np
 import math
@@ -496,7 +497,8 @@ class MaskedAutoencoderSwin(nn.Module):
                  mlp_ratio=4, window_size=8, # 16 for finetune
                  posmlp_dim=32,
                  decoder_embed_dim=512, decoder_depth=2, decoder_num_heads=16, 
-                 norm_layer=nn.LayerNorm, norm_pix_loss=False, vis_mask_ratio=0.):
+                 norm_layer=nn.LayerNorm, norm_pix_loss=False, vis_mask_ratio=0.,
+                 patch_loss: bool = True):
         super().__init__()
 
         self.embed_dim = embed_dim
@@ -606,6 +608,7 @@ class MaskedAutoencoderSwin(nn.Module):
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
+        self.patch_loss = patch_loss
 
         self.initialize_weights()
 
@@ -763,7 +766,7 @@ class MaskedAutoencoderSwin(nn.Module):
 
         return x, pos_mask.shape[1]
 
-    def forward_loss(self, imgs, pred, mask):
+    def forward_loss_patch(self, imgs, pred, mask):
         """
         imgs: [N, 3, H, W]
         pred: [N, mask, p*p*3] 
@@ -781,10 +784,21 @@ class MaskedAutoencoderSwin(nn.Module):
         loss = loss.mean()
         return loss
 
+    def forward_loss_img(self, imgs, pred, mask):
+        loss = (self.unpatchify(pred) - imgs) ** 2
+        loss_patched = self.patchify(loss)
+        loss_patched = loss_patched.mean(dim=-1)  # [N, L], mean loss per patch
+
+        loss = (loss_patched * mask).sum() / mask.sum()  # mean loss on removed patches
+        return loss 
+
     def forward(self, imgs, mask):
         latent = self.forward_encoder(imgs, mask) # returned mask may change
         pred, mask_num = self.forward_decoder(latent, mask)  # [N, L, p*p*3]
-        loss = self.forward_loss(imgs, pred[:, -mask_num:], mask)
+        if self.patch_loss:
+            loss = self.forward_loss_patch(imgs, pred[:, -mask_num:], mask)
+        else:
+            loss = self.forward_loss_img(imgs, pred, mask)
         return loss, pred, mask
 
 def mae_swin_tiny_224_m2f_dec512d2b(**kwargs):

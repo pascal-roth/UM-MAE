@@ -45,7 +45,7 @@ import wandb
 
 def get_args_parser():
     parser = argparse.ArgumentParser('UM-MAE pre-training', add_help=False)
-    parser.add_argument('--batch_size', default=256, type=int,
+    parser.add_argument('--batch_size', default=16, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--epochs', default=400, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
@@ -74,9 +74,16 @@ def get_args_parser():
                         help='Use (per-patch) normalized pixels as targets for computing loss')
     parser.set_defaults(norm_pix_loss=False)
 
+    parser.add_argument('--patch_loss', action='store_true',
+                        help='Determine loss in patchified or non-patchified space')
+    parser.set_defaults(patch_loss=False)
+
     parser.add_argument('--freeze', action='store_true',
                         help='Freeze encoder weights (useful for pre-trained encoder weights')
     parser.set_defaults(freeze=False)
+
+    parser.add_argument('--ckpt_frequency', default=100, type=int, 
+                        help='Frequency of savingb the model checkpoint')
     
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
@@ -185,7 +192,8 @@ def main(args):
                                                     vis_mask_ratio=args.vis_mask_ratio)
     elif 'mae_swin' in args.model:
         model = models_mae_swin.__dict__[args.model](norm_pix_loss=args.norm_pix_loss,
-                                                     vis_mask_ratio=args.vis_mask_ratio)
+                                                     vis_mask_ratio=args.vis_mask_ratio,
+                                                     patch_loss=args.patch_loss)
     elif 'simmim_pvt' in args.model:
         model = models_simmim_pvt.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
     elif 'simmim_swin' in args.model:
@@ -244,7 +252,7 @@ def main(args):
             log_writer=log_writer,
             args=args
         )
-        if args.output_dir and ((epoch + 1) % 100 == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and ((epoch + 1) % args.ckpt_frequency == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
